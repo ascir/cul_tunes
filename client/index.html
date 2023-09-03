@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+
+<body>
+    <main id="container">
+        <div>
+            <h4>PAGE VIEWS: <span id="pageviews-count"></span></h4>
+            <h1>Culinary Tunes 🎼</h1> 
+        </div>
+    </main>
+
+    <script>
+        const pageviewsCount = document.getElementById('pageviews-count');
+        let counterUpdated = false;
+        console.log("Counter Updated: ", counterUpdated)
+        updateCounter();
+
+        function updateCounter() {
+            if (!counterUpdated) {
+                fetch('http://localhost:3000/api') // Dynamic request with URL parameter
+                    .then(res => res.json())
+                    .then(data => {
+                        console.log(data.pageviews)
+                        pageviewsCount.textContent = data.pageviews; // Display pageviews to user
+                    })
+                counterUpdated = true;
+            }
+
+        }
+
+
+    </script>
+</body>
+
+</html>

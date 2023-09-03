@@ -1,0 +1,15 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat&family=Satisfy&display=swap');
+
+body {
+    background-color: #fff5d9;
+}
+
+h4 {
+    text-align: right;
+    font-family: 'Montserrat', sans-serif;
+}
+
+h1{
+    font-family: 'Satisfy',cursive;
+    font-size: 50px;
+}
