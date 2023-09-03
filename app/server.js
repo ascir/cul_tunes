@@ -2,15 +2,13 @@ const express = require('express');
 const app = express();
 const cors = require('cors');
 const fs = require('fs');
+require('dotenv').config();
 
 app.use(cors()); // Prevents CORS error
 
-app.get('/', (req, res) => {
-    res.send('<html><body>Node Server</body></html>');
-  });
+app.use(express.static('public'));
 
-
-app.get('/api', function(req, res) {
+app.get('/api/page-views', function(req, res) {
 
     if (req.url === '/favicon.ico') {
         res.end();
