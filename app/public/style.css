@@ -43,3 +43,7 @@ h1{
     -webkit-transition: all 400ms cubic-bezier(0.55, 0.055, 0.675, 0.19);
     transition: all 400ms cubic-bezier(0.55, 0.055, 0.675, 0.19);
   }
+
+  .play-btn:hover {
+    cursor: pointer;
+  }
