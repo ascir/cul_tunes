@@ -4,37 +4,55 @@ const cors = require('cors');
 const fs = require('fs');
 const https = require('https');
 const logger = require('morgan');
-const router = express.Router();
+const AWS = require("aws-sdk");
 
-router.use(logger('tiny'));
+AWS.config.update({
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    sessionToken: process.env.AWS_SESSION_TOKEN,
+    region: "ap-southeast-2",
+});
+
+const bucketName = "cab432-anjana";
+const objectKey = "count.json";
+
+const s3 = new AWS.S3();
+
+app.use(logger('tiny'));
 require('dotenv').config();
 
 app.use(cors()); // Prevents CORS error
 
 app.use(express.static('public'));
 
-app.get('/api/page-views', function (req, res) {
+app.get('/api/page-views', async function (req, res) {
 
     if (req.url === '/favicon.ico') {
         res.end();
     }
     // Ends request for favicon without counting
+    try {
+        const json = await getObjectFromS3();
 
-    const json = fs.readFileSync('count.json', 'utf-8');
-    const obj = JSON.parse(json);
-    // Reads count.json and converts to JS object
+        json.pageviews = json.pageviews + 1;
+        res.send(json);
 
-    obj.pageviews = obj.pageviews + 1;
-    console.log("Pageviews:", obj.pageviews)
-
-    // Updates pageviews and visits (conditional upon URL param value)
-
-    const newJSON = JSON.stringify(obj);
-    // Converts result to JSON
-
-    fs.writeFileSync('count.json', newJSON);
-    res.send(newJSON);
-    // Writes result to file and sends to user as JSON
+        await uploadJsonToS3(json)
+    } catch (error) {
+        console.error("S3 bucket error, trying again:", error);
+        // If upload fails, try creating the bucket
+        try {
+            await createS3bucket();
+            const json = {
+                pageviews: 363
+            };
+            res.send(json);
+        }
+        catch (error) {
+            console.log("Error:", error)
+            res.status(500).json({ error: "S3 connection error" }); 
+        }
+    }
 
 })
 
@@ -67,6 +85,54 @@ app.get('/api/explore', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+async function createS3bucket() {
+    try {
+        await s3.createBucket({ Bucket: bucketName }).promise();
+        console.log(`Created bucket: ${bucketName}`);
+    } catch (err) {
+        if (err.statusCode === 409) {
+            console.log(`Bucket already exists: ${bucketName}`);
+        } else {
+            console.log(`Error creating bucket: ${err}`);
+        }
+    }
+}
+
+// Upload the JSON data to S3
+async function uploadJsonToS3(jsonData) {
+    const params = {
+        Bucket: bucketName,
+        Key: objectKey,
+        Body: JSON.stringify(jsonData), // Convert JSON to string
+        ContentType: "application/json", // Set content type
+    };
+
+    try {
+        await s3.putObject(params).promise();
+        console.log("JSON file uploaded successfully.");
+    } catch (err) {
+        console.error("Error uploading JSON file:", err);
+    }
+}
+
+// Retrieve the object from S3
+async function getObjectFromS3() {
+    const params = {
+        Bucket: bucketName,
+        Key: objectKey,
+    };
+
+    try {
+        const data = await s3.getObject(params).promise();
+        // Parse JSON content
+        const parsedData = JSON.parse(data.Body.toString("utf-8"));
+        console.log("Parsed JSON data:", parsedData);
+        return parsedData;
+    } catch (err) {
+        console.error("Error:", err);
+    }
+}
 
 function getAlbumsFromTag(area, count) {
     return new Promise((resolve, reject) => {
