@@ -54,6 +54,10 @@ h1{
   }
 
   .album-card {
-    padding: 10px; /* Add some padding */
-    border: 1px solid #ccc; /* Add a 1px gray border */
+    padding: 10px; 
+    /* border: 1px solid #ccc;*/
+  }
+
+  .api2RecipeCard{
+    padding: 10px;
   }
