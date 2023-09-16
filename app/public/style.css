@@ -8,6 +8,11 @@ h4 {
     font-family: 'Montserrat', sans-serif;
 }
 
+h3 {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: bold;
+}
+
 h1{
     font-family: 'Satisfy',cursive;
     font-size: 50px;
@@ -46,4 +51,9 @@ h1{
 
   .play-btn:hover {
     cursor: pointer;
+  }
+
+  .album-card {
+    padding: 10px; /* Add some padding */
+    border: 1px solid #ccc; /* Add a 1px gray border */
   }

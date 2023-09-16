@@ -1,7 +1,7 @@
 const express = require('express');
 const app = express();
 const cors = require('cors');
-const fs = require('fs'); 
+const fs = require('fs');
 const https = require('https');
 const logger = require('morgan');
 const router = express.Router();
@@ -41,172 +41,178 @@ app.get('/api/page-views', function (req, res) {
 app.get('/api/cook-and-play', async (req, res) => {
     try {
         const dish = req.query.dish;
-
-        // Construct the URL for the external API
-        const themealdbUrl = `https://www.themealdb.com/api/json/v1/1/search.php?s=${dish}`;
-
-        // Make the request to the external API
-        https.get(themealdbUrl, (response) => {
-            let data = '';
-
-            // Concatenate data chunks as they arrive
-            response.on('data', (chunk) => {
-                data += chunk;
-            });
-
-            // When all data has been received
-            response.on('end', () => {
-                try {
-                    // Parse the JSON data
-                    const jsonData = JSON.parse(data);
-
-                    // Extract the required information from the response
-                    const meals = jsonData.meals.map(meal => ({
-                        strMeal: meal.strMeal,
-                        strMealThumb: meal.strMealThumb,
-                        strYoutube: meal.strYoutube,
-                        strArea: meal.strArea,
-                    }));
-
-
-                } catch (error) {
-                    console.error(error);
-                    res.status(500).json({ error: 'Internal Server Error' });
-                }
-            });
-        }).on('error', (error) => {
-            console.error(error);
-            res.status(500).json({ error: 'Internal Server Error' });
-        });
-        https.get(themealdbUrl, (response) => {
-            let data = '';
-
-            // Concatenate data chunks as they arrive
-            response.on('data', (chunk) => {
-                data += chunk;
-            });
-
-            // When all data has been received
-            response.on('end', () => {
-                try {
-                    // Parse the JSON data
-                    const jsonData = JSON.parse(data);
-
-                    // Extract the required information from the response
-                    const meals = jsonData.meals.map(meal => ({
-                        strMeal: meal.strMeal,
-                        strMealThumb: meal.strMealThumb,
-                        strYoutube: meal.strYoutube,
-                        strArea: meal.strArea,
-                    }));
-
-
-                } catch (error) {
-                    console.error(error);
-                    res.status(500).json({ error: 'Internal Server Error' });
-                }
-            });
-        }).on('error', (error) => {
-            console.error(error);
-            res.status(500).json({ error: 'Internal Server Error' });
-        });
+        const recipesWithAlbums = await getRecipesFromDish(dish);
+        res.json({ recipesWithAlbums });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
-})
+});
 
-function getAlbumsFromTag(area, callback) {
-    const lastFmUrl = `https://ws.audioscrobbler.com/2.0/?format=json&method=tag.gettopalbums&limit=15&tag=${area}&api_key=${process.env.LASTFM_API_KEY}`;
+app.get('/api/explore', async (req, res) => {
+    try {
+        const area = req.query.area;
 
-    https.get(lastFmUrl, (response) => {
-        let data = '';
+        const recipes = await getRecipesByArea(area);
+        const albums = await getAlbumsFromTag(area, 8);
 
-        response.on('data', (chunk) => {
-            data += chunk;
-        });
+        const combinedData = {
+            recipes,
+            albums,
+        };
 
-        response.on('end', () => {
-            try {
-                const jsonData = JSON.parse(data);
-                const albums = jsonData.albums.album;
-                
-                // Shuffle the albums randomly
-                for (let i = albums.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [albums[i], albums[j]] = [albums[j], albums[i]];
+        res.json({ combinedData });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+function getAlbumsFromTag(area, count) {
+    return new Promise((resolve, reject) => {
+        const lastFmUrl = `https://ws.audioscrobbler.com/2.0/?format=json&method=tag.gettopalbums&limit=20&tag=${area}&api_key=${process.env.LASTFM_API_KEY}`;
+
+        https.get(lastFmUrl, (response) => {
+            let data = '';
+
+            response.on('data', (chunk) => {
+                data += chunk;
+            });
+
+            response.on('end', () => {
+                try {
+                    const jsonData = JSON.parse(data);
+                    const albums = jsonData.albums.album;
+
+                    // Shuffle the albums randomly
+                    for (let i = albums.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [albums[i], albums[j]] = [albums[j], albums[i]];
+                    }
+
+                    // Select 'count' number of albums
+                    const selectedAlbums = albums.slice(0, count).map(album => ({
+                        name: album.name,
+                        url: album.url,
+                        artist: album.artist.name,
+                        image: album.image.find(img => img.size === 'medium')['#text']
+                    }));
+
+                    resolve(selectedAlbums);
+                } catch (error) {
+                    console.error('Error parsing Last.fm API response:', error);
+                    reject([]);
                 }
-
-                // Select the first 3 albums (randomly shuffled)
-                const selectedAlbums = albums.slice(0, 3).map(album => ({
-                    name: album.name,
-                    url: album.url,
-                    artist: album.artist.name,
-                    image: album.image.find(img => img.size === 'medium')['#text']
-                }));
-
-                callback(selectedAlbums);
-            } catch (error) {
-                console.error('Error parsing Last.fm API response:', error);
-                callback([]);
-            }
+            });
+        }).on('error', (error) => {
+            console.error('Error making request to Last.fm API:', error);
+            reject([]);
         });
-    }).on('error', (error) => {
-        console.error('Error making request to Last.fm API:', error);
-        callback([]);
     });
 }
 
-function getRecipes() {
-    const mealDbUrl = 'https://www.themealdb.com/api/json/v1/1/search.php?s=spaghetti'; // Replace with your query
+function getRecipesFromDish(dish) {
+    return new Promise((resolve, reject) => {
+        const mealDbUrl = `https://www.themealdb.com/api/json/v1/1/search.php?s=${dish}`;
 
-    https.get(mealDbUrl, (response) => {
-        let data = '';
+        https.get(mealDbUrl, (response) => {
+            let data = '';
 
-        response.on('data', (chunk) => {
-            data += chunk;
-        });
+            response.on('data', (chunk) => {
+                data += chunk;
+            });
 
-        response.on('end', () => {
-            try {
-                const jsonData = JSON.parse(data);
-                const meals = jsonData.meals;
+            response.on('end', () => {
+                try {
+                    const jsonData = JSON.parse(data);
+                    const meals = jsonData.meals;
 
-                if (meals) {
-                    var recipesWithAlbums = [];
-                    let processedCount = 0;
+                    if (meals) {
+                        const recipesWithAlbums = [];
+                        let processedCount = 0;
 
-                    meals.forEach(meal => {
-                        const area = meal.strArea;
+                        meals.forEach(meal => {
+                            const area = meal.strArea;
 
-                        getAlbumsFromTag(area, (albums) => {
-                            meal.albums = albums;
-                            recipesWithAlbums.push(meal);
+                            // Using the modified getAlbumsFromTag that returns a Promise
+                            getAlbumsFromTag(area, 4)
+                                .then(albums => {
+                                    meal.albums = albums;
+                                    recipesWithAlbums.push(meal);
 
-                            // Check if all recipes have been processed
-                            processedCount++;
-                            if (processedCount === meals.length) {
-                                recipesWithAlbums = recipesWithAlbums.map((recipe) => ({
-                                    meal: recipe.strMeal,
-                                    thumbnail: recipe.strMealThumb,
-                                    instructions: recipe.instructions,
-                                    youtube: recipe.strYoutube,
-                                    albums: recipe.albums,
-                                  }));
-                                // Send the final response with recipes and albums
-                                return JSON.stringify(recipesWithAlbums, null, 2);
-                            }
+                                    // Check if all recipes have been processed
+                                    processedCount++;
+                                    if (processedCount === meals.length) {
+                                        const finalRecipes = recipesWithAlbums.map((recipe) => ({
+                                            meal: recipe.strMeal,
+                                            thumbnail: recipe.strMealThumb,
+                                            instructions: recipe.strInstructions,
+                                            youtube: recipe.strYoutube,
+                                            albums: recipe.albums,
+                                        }));
+                                        // Resolve with the final response
+                                        resolve(finalRecipes);
+                                    }
+                                })
+                                .catch(error => {
+                                    // Handle error in getting albums
+                                    console.error('Error getting albums:', error);
+                                    reject(error);
+                                });
                         });
-                    });
-                } else {
-                    console.error('No meals found in TheMealDB response.');
+                    } else {
+                        const error = new Error('No meals found in TheMealDB response.');
+                        console.error(error);
+                        reject(error);
+                    }
+                } catch (error) {
+                    console.error('Error parsing TheMealDB API response:', error);
+                    reject(error);
                 }
-            } catch (error) {
-                console.error('Error parsing TheMealDB API response:', error);
-            }
+            });
+        }).on('error', (error) => {
+            console.error('Error making request to TheMealDB API:', error);
+            reject(error);
         });
-    }).on('error', (error) => {
-        console.error('Error making request to TheMealDB API:', error);
+    });
+}
+
+function getRecipesByArea(area) {
+    return new Promise((resolve, reject) => {
+        const mealDbUrl = `https://www.themealdb.com/api/json/v1/1/filter.php?a=${area}`;
+
+        https.get(mealDbUrl, (response) => {
+            let data = '';
+
+            response.on('data', (chunk) => {
+                data += chunk;
+            });
+
+            response.on('end', () => {
+                try {
+                    const jsonData = JSON.parse(data);
+                    const meals = jsonData.meals;
+
+                    if (meals) {
+                        const recipes = meals.map((recipe) => ({
+                            meal: recipe.strMeal,
+                            thumbnail: recipe.strMealThumb,
+                        }));
+                        resolve(recipes);
+                    } else {
+                        const error = new Error('No meals found in TheMealDB response.');
+                        console.error(error);
+                        reject(error);
+                    }
+                } catch (error) {
+                    console.error('Error parsing TheMealDB API response:', error);
+                    reject(error);
+                }
+            });
+        }).on('error', (error) => {
+            console.error('Error making request to TheMealDB API:', error);
+            reject(error);
+        });
     });
 }
 
