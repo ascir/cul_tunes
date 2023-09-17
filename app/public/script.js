@@ -10,15 +10,20 @@ const modalYoutubeLink = document.getElementById('recipeYoutubeLink');
 const loadingSpinner = document.querySelector('.spinner-border');
 
 let counterUpdated = false;
-console.log(counterUpdated);
 updateCounter();
-console.log(counterUpdated);
 
 
 function updateCounter() {
     if (!counterUpdated) {
         fetch('/api/page-views') // Dynamic request with URL parameter
-            .then(res => res.json())
+            .then(res => {
+                if (res.status === 200) {
+                    return res.json();
+                } else {
+                    pageviewsCount.textContent = "Cannot fetch pageviews ☹️";
+                    throw new Error("API request failed");
+                }
+            })
             .then(data => {
                 pageviewsCount.textContent = data.pageviews; // Display pageviews to user
             })

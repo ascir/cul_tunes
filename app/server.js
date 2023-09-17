@@ -39,18 +39,26 @@ app.get('/api/page-views', async function (req, res) {
 
         await uploadJsonToS3(json)
     } catch (error) {
-        console.error("S3 bucket error, trying again:", error);
+        console.error("S3 object not found, trying again:", error);
         // If upload fails, try creating the bucket
         try {
             await createS3bucket();
+            // If bucket already exists/just created, resetting the counter object uploading it into the bucket
             const json = {
-                pageviews: 363
+                pageviews: 0
             };
-            res.send(json);
+            try {
+                await uploadJsonToS3(json)
+                res.send(json);
+            }
+            catch (error) {
+                console.log("Error:", error)
+                res.status(500).json({ error: "S3 connection error: Cannot upload object to bucket" });
+            }
         }
         catch (error) {
             console.log("Error:", error)
-            res.status(500).json({ error: "S3 connection error" }); 
+            res.status(500).json({ error: "S3 connection error: Cannot create bucket" });
         }
     }
 
