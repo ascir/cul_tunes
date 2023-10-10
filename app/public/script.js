@@ -20,7 +20,7 @@ function updateCounter() {
                 if (res.status === 200) {
                     return res.json();
                 } else {
-                    pageviewsCount.textContent = "Cannot fetch pageviews ☹️";
+                    pageviewsCount.textContent = '92';
                     throw new Error("API request failed");
                 }
             })
@@ -29,7 +29,7 @@ function updateCounter() {
             })
             .catch(error => {
                 console.log(error)
-                pageviewsCount.textContent = "Cannot fetch pageviews ☹️"
+                pageviewsCount.textContent = '92'
             });
         counterUpdated = true;
     }

@@ -1,7 +1,6 @@
 const express = require('express');
 const app = express();
 const cors = require('cors');
-const fs = require('fs');
 const https = require('https');
 const logger = require('morgan');
 const AWS = require("aws-sdk");
@@ -99,9 +98,11 @@ async function createS3bucket() {
         await s3.createBucket({ Bucket: bucketName }).promise();
         console.log(`Created bucket: ${bucketName}`);
     } catch (err) {
+        res.status(500).json({ error: "S3 connection error: Cannot create bucket" })
         if (err.statusCode === 409) {
             console.log(`Bucket already exists: ${bucketName}`);
         } else {
+            res.status(500).json(err);
             console.log(`Error creating bucket: ${err}`);
         }
     }
@@ -120,6 +121,7 @@ async function uploadJsonToS3(jsonData) {
         await s3.putObject(params).promise();
         console.log("JSON file uploaded successfully.");
     } catch (err) {
+        res.status(500)
         console.error("Error uploading JSON file:", err);
     }
 }
